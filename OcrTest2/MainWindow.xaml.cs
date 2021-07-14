@@ -41,13 +41,13 @@ namespace OcrTest2
     
     public partial class MainWindow : System.Windows.Window
     {
-        public static string assetsRelativePath = @"D:\hs\OcrTest2\OcrTest2\";        // <- ocr directory
+        public static string assetsRelativePath = @"D:\hs\OcrTest2\OcrTest2";        // <- ocr directory
         public static string modelFilePath_det = System.IO.Path.Combine(assetsRelativePath, "Models", "det11_ko.onnx");
         public static string modelFilePath_rec = System.IO.Path.Combine(assetsRelativePath, "Models", "rec.onnx");
         public static string imagesFolder_out = System.IO.Path.Combine(assetsRelativePath, "Crop");
         public static string dictFolder = System.IO.Path.Combine(assetsRelativePath, "Dict");
         public static string imagesFolder = System.IO.Path.Combine(assetsRelativePath, "Input");
-        string _predictSingleImage_re = System.IO.Path.Combine(imagesFolder, "101.jpg");                    // < - input image directory 
+        public static string _predictSingleImage_re = System.IO.Path.Combine(imagesFolder, "101.jpg");                    // < - input image directory 
 
         double x, y; // Mouse Position 
         private bool isDrawing;
@@ -266,7 +266,7 @@ namespace OcrTest2
                 poly = CreatePoly(myPointCollection, Brushes.Red, 2, null);
                 //canvas.Children.Add(poly);
             }
-            Cv2.ImShow("1", tmp);
+            //Cv2.ImShow("1", tmp);
             // First contour
             // Second contour
             Polygon poly2;
@@ -314,7 +314,7 @@ namespace OcrTest2
 
                 Cv2.Rectangle(img,new OpenCvSharp.Point(points2[1].X, points2[1].Y), new OpenCvSharp.Point(points2[3].X, points2[3].Y) , Scalar.Black,2);// 사각형으로 그리기, 사각형 하면 될듯.
             }
-            Cv2.ImShow("2", img);
+            //Cv2.ImShow("2", img);
             DetectRstDock.Children.Clear();
 
             Console.WriteLine("===========================");
@@ -353,12 +353,12 @@ namespace OcrTest2
                 double hg = image_rec.Height;
                 double wd = image_rec.Width;
                 Console.WriteLine(image_rec.Size());
-                //double wh_ratio = wd * 1.0 / hg;
+                double wh_ratio = wd * 1.0 / hg;
                 int imgH = 32;
                 int imgW = 320;
-                //max_wh_ratio = Math.Max(max_wh_ratio, wh_ratio);
+                max_wh_ratio = Math.Max(max_wh_ratio, wh_ratio);
 
-                //imgW = (int)(32 * max_wh_ratio);
+                imgW = (int)(32 * max_wh_ratio);
                 double ratio = wd / (double)hg;
                 int resized_rec_w = 0;
                 if (Math.Ceiling(imgH * ratio) > imgW) resized_rec_w = imgW;
@@ -377,26 +377,24 @@ namespace OcrTest2
                     Span<Rgb24> pixelSpan = image_rec.GetPixelRowSpan(y);
                     for (int x = 0; x < width_r; x++)
                     {
-                        if (x >= resized_rec_w)
+                        if (x < resized_rec_w)
                         {
-                            input_r[0, 0, y, x] = 0;
-                            input_r[0, 1, y, x] = 0;
-                            input_r[0, 2, y, x] = 0;
+                            input_r[0, 0, y, x] = ((pixelSpan[x].R / 255f) - (float)0.5) / (float)0.5;
+                            input_r[0, 1, y, x] = ((pixelSpan[x].G / 255f) - (float)0.5) / (float)0.5;
+                            input_r[0, 2, y, x] = ((pixelSpan[x].B / 255f) - (float)0.5) / (float)0.5;
                             continue;
                         }
-                        input_r[0, 0, y, x] = ((pixelSpan[x].R / 255f) - (float)0.5) / (float)0.5;
-                        input_r[0, 1, y, x] = ((pixelSpan[x].G / 255f) - (float)0.5) / (float)0.5;
-                        input_r[0, 2, y, x] = ((pixelSpan[x].B / 255f) - (float)0.5) / (float)0.5;
+                        input_r[0, 0, y, x] = 0;
+                        input_r[0, 1, y, x] = 0;
+                        input_r[0, 2, y, x] = 0;
+
                     }
                 }
                 var inputs_r = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("x", input_r) };
                 var inference_r = new InferenceSession(modelFilePath_rec);
                 IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results_r = inference_r.Run(inputs_r);
-                Console.WriteLine(results_r);
                 var resultsArray_r = results_r.ToArray();
                 Console.WriteLine(resultsArray_r.Length);
-
-                Console.WriteLine(resultsArray_r);
                 float[] d = resultsArray_r[0].AsEnumerable<float>().ToArray();
                 Console.WriteLine(d.Length);
                 double[] argmax = new double[80];
@@ -406,10 +404,10 @@ namespace OcrTest2
                 for (int k = 0; k < 80; k++)
                 {
                     int idx = 0;
-                    double max = -1;
+                    double max = -10.0;
                     for (int j = 0; j < 3689; j++)
                     {
-                        res[k, j] = d[3689 * k + j];
+                        res[k, j] = (double)d[3689 * k + j];
                         if (max < res[k, j])
                         {
                             idx = j;
@@ -418,12 +416,20 @@ namespace OcrTest2
                     }
                     index[k] = idx;
                     argmax[k] = max;
+                    Console.Write(index[k]);
+                    Console.Write("     ");
+
+                    Console.WriteLine(argmax[k]);
                 }
                 string line;
                 for (int k = 0; k < 80; k++)
                 {
-                    if (index[k] == 0) continue;
-                    if (k > 0 && index[k] == index[k - 1]) continue;
+                    if (index[k] == 0)
+                        continue;
+                   
+                    if (k > 0 && index[k] == index[k - 1])
+                        continue;
+                
                     int count = 0;
                     StreamReader file = new StreamReader(dictFolder + "\\korean_dict.txt");
                     while ((line = file.ReadLine()) != null)
@@ -434,6 +440,7 @@ namespace OcrTest2
                         {
                             result = result + line;
                             Console.WriteLine(line);
+                            Console.WriteLine(count);
                         }
                     }
                 }
@@ -490,13 +497,9 @@ namespace OcrTest2
             var inputs_r = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("x", input_r) };
             var inference_r = new InferenceSession(modelFilePath_rec);
             IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results_r = inference_r.Run(inputs_r);
-            Console.WriteLine(results_r);
             var resultsArray_r = results_r.ToArray();
-            Console.WriteLine(resultsArray_r.Length);
-
-            Console.WriteLine(resultsArray_r);
             float[] d = resultsArray_r[0].AsEnumerable<float>().ToArray();
-            Console.WriteLine(d.Length);
+            Console.Write(d.Length);
             double[] argmax = new double[80];
             int[] index = new int[80];
             double[,] res = new double[80, 3689];
@@ -506,7 +509,7 @@ namespace OcrTest2
                 double max = -1;
                 for (int j = 0; j < 3689; j++)
                 {
-                    res[i, j] = d[3689 * i + j];
+                    res[i, j] = (double)d[3689 * i + j];
                     if (max < res[i, j])
                     {
                         idx = j;
