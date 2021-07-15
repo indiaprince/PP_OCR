@@ -1,20 +1,4 @@
-﻿/* Created by Hyeon Su Han
- * Since 21/06/24 ~ 21/07/08
- * Based on the paper named PP-OCR: A Practical Ultra Lightweight OCR System by Yuning Du et al.
- * 
- * Using OCR model from Paddle and converted it into onnx framework.
- * Also, the preprocessing and postprocessing are also followed by python codes from the paper.
- * 
- * 
- * 1. Detecting by itself and Recognize the text.
- * 2. Croping and perform the Recognition.
- * 
- * 
- * 
- * 
- */
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -36,18 +20,20 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using OpenCvSharp;
 using System.IO;
+using System.Reflection;
+using Microsoft.Win32;
+
 namespace OcrTest2
 {
-    
     public partial class MainWindow : System.Windows.Window
     {
-        public static string assetsRelativePath = @"D:\hs\OcrTest2\OcrTest2";        // <- ocr directory
-        public static string modelFilePath_det = System.IO.Path.Combine(assetsRelativePath, "Models", "det11_ko.onnx");
-        public static string modelFilePath_rec = System.IO.Path.Combine(assetsRelativePath, "Models", "rec.onnx");
-        public static string imagesFolder_out = System.IO.Path.Combine(assetsRelativePath, "Crop");
-        public static string dictFolder = System.IO.Path.Combine(assetsRelativePath, "Dict");
-        public static string imagesFolder = System.IO.Path.Combine(assetsRelativePath, "Input");
-        public static string _predictSingleImage_re = System.IO.Path.Combine(imagesFolder, "101.jpg");                    // < - input image directory 
+        public static string assetsRelativePath;        // <- ocr directory
+        public static string modelFilePath_det;
+        public static string modelFilePath_rec;
+        public static string imagesFolder_out;
+        public static string dictFolder;
+        public static string imagesFolder;
+        public static string _predictSingleImage_re;                    // < - input image directory 
 
         double x, y; // Mouse Position 
         private bool isDrawing;
@@ -57,14 +43,33 @@ namespace OcrTest2
         double cropped_height= 0;
         int resize_h;
         int resize_w;
-
         public MainWindow()
         {
-            InitializeComponent(); 
+            InitializeComponent();
+
+            assetsRelativePath = System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location);
+            modelFilePath_det = System.IO.Path.Combine(assetsRelativePath, "Models", "det11_ko.onnx");
+            modelFilePath_rec = System.IO.Path.Combine(assetsRelativePath, "Models", "rec11_ko_v2.onnx");
+            imagesFolder_out = System.IO.Path.Combine(assetsRelativePath, "Crop");
+            dictFolder = System.IO.Path.Combine(assetsRelativePath, "Dict");
+            imagesFolder = System.IO.Path.Combine(assetsRelativePath, "Input");
+            _predictSingleImage_re = System.IO.Path.Combine(imagesFolder, "10.jpg");
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            /*
+            OpenFileDialog a = new OpenFileDialog();
+            if (a.ShowDialog() == true)
+            {
+                string fullpath = a.FileName;
+                string filename = a.SafeFileName;
+                string path = fullpath.Replace(filename, "");
+                _predictSingleImage_re = path;
+                string[] files = Directory.GetFiles(path);
+
+            }
+            */
             Img.Source = new BitmapImage(new Uri(_predictSingleImage_re));
             Image<Rgb24> image = SixLabors.ImageSharp.Image.Load<Rgb24>(_predictSingleImage_re, out IImageFormat format);
 
@@ -97,7 +102,6 @@ namespace OcrTest2
             start_x = StartMousePoint.X;
             start_y = StartMousePoint.Y;
             isDrawing = true;
-
         }
 
         private void canvas_MouseMove(object sender, MouseEventArgs e)
@@ -144,6 +148,7 @@ namespace OcrTest2
             CropRstCanvas.Visibility = Visibility.Collapsed;
             DetectRstDock.Visibility = Visibility.Visible;
             // image resize
+            
             Image<Rgb24> image = SixLabors.ImageSharp.Image.Load<Rgb24>(_predictSingleImage_re, out IImageFormat format);
             int h = image.Height;
             int w = image.Width;
@@ -193,10 +198,9 @@ namespace OcrTest2
             //inference
 
 
-            //segmentation
+            //threshold
             float[,] box2 = new float[resize_h, resize_w];
-            float[,] segmentation = new float[resize_h, resize_w];
-
+            
             for (int i = 0; i < resize_h; i++)
             {
                 for (int j = 0; j < resize_w; j++)
@@ -206,7 +210,7 @@ namespace OcrTest2
                     else box2[i, j] = 0.0f;
                 }
             }
-            //segmentation
+            //threshold
             Console.WriteLine("===========================");
 
 
@@ -266,7 +270,6 @@ namespace OcrTest2
                 poly = CreatePoly(myPointCollection, Brushes.Red, 2, null);
                 //canvas.Children.Add(poly);
             }
-            //Cv2.ImShow("1", tmp);
             // First contour
             // Second contour
             Polygon poly2;
@@ -319,10 +322,11 @@ namespace OcrTest2
 
             Console.WriteLine("===========================");
             //Recognition
+            double max_wh_ratio = 0;
+
             for (int i = bx.Count-1; i >=0 ; i--)
             {
                 string result = "";
-                double max_wh_ratio = 0;
                 var rstImg = new System.Windows.Controls.Image
                 {
                     HorizontalAlignment = HorizontalAlignment.Left,
@@ -368,8 +372,8 @@ namespace OcrTest2
                 Console.WriteLine(image_rec.Size());
                 int batch_r = 1;
                 int channel_r = 3;
-                int height_r = 32;
-                int width_r = 320;
+                int height_r = imgH;
+                int width_r = imgW;
                 Tensor<float> input_r = new DenseTensor<float>(new[] { batch_r, channel_r, height_r, width_r });
 
                 for (int y = 0; y < height_r; y++)
@@ -377,6 +381,7 @@ namespace OcrTest2
                     Span<Rgb24> pixelSpan = image_rec.GetPixelRowSpan(y);
                     for (int x = 0; x < width_r; x++)
                     {
+                        
                         if (x < resized_rec_w)
                         {
                             input_r[0, 0, y, x] = ((pixelSpan[x].R / 255f) - (float)0.5) / (float)0.5;
@@ -387,7 +392,6 @@ namespace OcrTest2
                         input_r[0, 0, y, x] = 0;
                         input_r[0, 1, y, x] = 0;
                         input_r[0, 2, y, x] = 0;
-
                     }
                 }
                 var inputs_r = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("x", input_r) };
@@ -397,16 +401,17 @@ namespace OcrTest2
                 Console.WriteLine(resultsArray_r.Length);
                 float[] d = resultsArray_r[0].AsEnumerable<float>().ToArray();
                 Console.WriteLine(d.Length);
-                double[] argmax = new double[80];
-                int[] index = new int[80];
-                double[,] res = new double[80, 3689];
+                int len = d.Length / 3689;
+                double[] argmax = new double[len];
+                int[] index = new int[len];
+                double[,] res = new double[len, 3689];
 
-                for (int k = 0; k < 80; k++)
+                for (int k = 0; k < len; k++)
                 {
                     int idx = 0;
                     double max = -10.0;
                     for (int j = 0; j < 3689; j++)
-                    {
+                    {  
                         res[k, j] = (double)d[3689 * k + j];
                         if (max < res[k, j])
                         {
@@ -422,7 +427,7 @@ namespace OcrTest2
                     Console.WriteLine(argmax[k]);
                 }
                 string line;
-                for (int k = 0; k < 80; k++)
+                for (int k = 0; k < len; k++)
                 {
                     if (index[k] == 0)
                         continue;
@@ -444,13 +449,10 @@ namespace OcrTest2
                         }
                     }
                 }
-
                 rstTxt.FontSize = 30;
                 rstTxt.Text = result;
             }
             //Recognition
-
-
         }
         private void BtnRec_Click(object sender, RoutedEventArgs e)
         {
@@ -473,8 +475,8 @@ namespace OcrTest2
             Console.WriteLine(image_rec.Size());
             int batch_r = 1;
             int channel_r = 3;
-            int height_r = 32;
-            int width_r = 320;
+            int height_r = imgH;
+            int width_r = imgW;
             Tensor<float> input_r = new DenseTensor<float>(new[] { batch_r, channel_r, height_r, width_r });
 
             for (int y = 0; y < height_r; y++)
@@ -540,10 +542,16 @@ namespace OcrTest2
             Result.Text = result;
         }
 
-        public void Save_Img(System.Windows.Controls.Image image){
+        public void Save_Img(System.Windows.Controls.Image image)
+        {
+            if (!Directory.Exists(imagesFolder_out))
+                Directory.CreateDirectory(imagesFolder_out);
+
+            var path = imagesFolder_out + "\\cropped.jpg";
+
             var encoder = new JpegBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create((BitmapSource)image.Source));
-            using (FileStream stream = new FileStream(imagesFolder_out + "\\cropped.jpg", FileMode.Create))
+            using (FileStream stream = new FileStream(path, FileMode.Create))
                 encoder.Save(stream);  
         }
         public Polygon CreatePoly(PointCollection pts, Brush brush, double thickness, DoubleCollection dashStyle){
