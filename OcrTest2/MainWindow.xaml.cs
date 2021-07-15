@@ -53,7 +53,7 @@ namespace OcrTest2
             imagesFolder_out = System.IO.Path.Combine(assetsRelativePath, "Crop");
             dictFolder = System.IO.Path.Combine(assetsRelativePath, "Dict");
             imagesFolder = System.IO.Path.Combine(assetsRelativePath, "Input");
-            _predictSingleImage_re = System.IO.Path.Combine(imagesFolder, "10.jpg");
+            _predictSingleImage_re = System.IO.Path.Combine(imagesFolder, "101.jpg");
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

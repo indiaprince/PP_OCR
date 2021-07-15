@@ -318,35 +318,35 @@
     <Folder Include="Crop\" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="Input\101.jpg">
+    <None Include="Input\101.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Input\ch1.jpg">
+    </None>
+    <None Include="Input\ch1.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Input\ch2.jpg">
+    </None>
+    <None Include="Input\ch2.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Input\ch3.jpg">
+    </None>
+    <None Include="Input\ch3.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Input\en1.jpg">
+    </None>
+    <None Include="Input\en1.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Input\en2.jpg">
+    </None>
+    <None Include="Input\en2.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Input\en3.jpg">
+    </None>
+    <None Include="Input\en3.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Input\ko.jpg">
+    </None>
+    <None Include="Input\ko.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="Dict\korean_dict.txt">
+    <None Include="Dict\korean_dict.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="bin\Debug\OpenCvSharpExtern.dll" />
